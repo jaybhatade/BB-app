@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Bloom Budget (beta)",
+    "slug": "my-expo-app",
+    "version": "7.0.0",
+    "web": {
+      "favicon": "./assets/Logo.png"
+    },
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-font"
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/Logo.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/Logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff",
+      "dark": {
+        "backgroundColor": "#121212"
+      }
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/Logo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.jay7.bloombudget",
+      "newArchEnabled": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7196abdb-1bc1-4070-b666-d0053997cee7"
+      }
+    },
+    "owner": "jay77"
+  }
+}

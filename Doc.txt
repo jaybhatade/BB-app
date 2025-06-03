@@ -1,0 +1,53 @@
+// Light Theme Colors
+Primary: #21965B
+Secondary: rgb(31, 134, 83)
+Background: #FFFFFF
+Surface: #F5F5F5
+OnPrimary: #FFFFFF
+OnSecondary: #FFFFFF
+OnBackground: #000000
+OnSurface: #000000
+TextPrimary: #000000
+TextSecondary: #707070
+
+// Dark Theme Colors
+PrimaryDark: #21965B
+SecondaryDark: rgb(25, 110, 68)
+BackgroundDark: #121212
+SurfaceDark: #1E1E1E
+OnPrimaryDark: #000000
+OnSecondaryDark: #000000
+OnBackgroundDark: #FFFFFF
+OnSurfaceDark: #FFFFFF
+TextPrimaryDark: #FFFFFF
+TextSecondaryDark: #B0B0B0
+
+
+File Structure
+BloomBudget/
+│── assets/                 # Images, icons, and fonts
+│── src/
+│   │── components/         # Reusable UI components
+│   │── contexts/           # Context API (global state management)
+│   │── hooks/              # Custom hooks
+│   │── navigation/         # Navigation configuration
+│   │── screens/            # App Screens (UI pages)
+│   │   ├── Auth/
+│   │   │   ├── LoginScreen.js
+│   │   ├── HomeScreen.js
+│   │── services/           # Firebase & API calls
+│   │   ├── firebase.js     # Firebase setup & Firestore config
+│   │── storage/            # Local AsyncStorage functions
+│   │   ├── localStorage.js
+│   │── styles/             # Global styles and theme files
+│   │   ├── theme.js
+│   │── utils/              # Utility functions (helpers)
+│── db/                     # Offline SQLite DB setup
+│   ├── db.js               # SQLite database setup
+│── App.tsx                  # Root component
+│── package.json            # Project dependencies
+│── babel.config.js         # Babel configuration
+│── metro.config.js         # React Native Metro bundler configuration
+|── nativewind-env.d.ts
+|── app-env.d.ts
+│── .gitignore              # Ignore unnecessary files

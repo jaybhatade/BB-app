@@ -1,0 +1,2 @@
+cretea a UserinfoScreen component that will have 3 Pages. 1 Page will have Name Field ceond page will have phone number fields and third Page will have Initial Banace Fields which inculde Bank And Cash. and when submitted Keep the User Info in the user table. and the initial Amount transactions will be inerted. as income catrogory"deposit. 
+

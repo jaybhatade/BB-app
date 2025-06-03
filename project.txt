@@ -1,0 +1,60 @@
+# Project: Bloom Budget (Mobile App)
+
+## Overview
+
+*   **Project Name:** Bloom Budget (beta)
+*   **Type:** Mobile Application
+*   **Platform:** iOS & Android
+*   **Version:** 7.0.0
+
+## Technology Stack
+
+*   **Framework:** React Native with Expo
+*   **Language:** TypeScript
+*   **Styling:** NativeWind (Tailwind CSS for React Native)
+*   **Database:** SQLite (via `expo-sqlite`)
+*   **Backend/Auth:** Firebase (inferred)
+*   **Navigation:** React Navigation (inferred)
+*   **Build Service:** Expo Application Services (EAS)
+
+## Key Features (Inferred from Code Structure)
+
+*   Budget Creation & Tracking
+*   Financial Goal Setting & Monitoring
+*   Transaction Recording & Management (Add, View All, Recent)
+*   Account Management
+*   Category Management
+*   AI-driven Insights/Features
+*   User Authentication
+*   Financial Statistics & Reporting
+*   Notifications
+*   User Onboarding Flow
+*   User Profile Management
+*   Light/Dark Mode Theming
+
+## Configuration Files
+
+*   `app.json`: Expo configuration (name, version, plugins, icons, etc.)
+*   `package.json`: Project dependencies and scripts.
+*   `tsconfig.json`: TypeScript configuration.
+*   `tailwind.config.js`: NativeWind (Tailwind) configuration.
+*   `eas.json`: Expo Application Services build configuration.
+
+## Key Directories
+
+*   `src/`: Main application source code.
+    *   `components/`: Reusable UI components.
+    *   `contexts/`: React Context API providers (Auth, DB, Theme).
+    *   `hooks/`: Custom React hooks.
+    *   `navigation/`: Navigation setup (React Navigation).
+    *   `screens/`: Top-level screen components.
+    *   `services/`: External service integrations (e.g., Firebase).
+    *   `db/`: Database setup and utilities.
+    *   `types/`: TypeScript type definitions.
+    *   `utils/`: Utility functions.
+*   `assets/`: Static assets (images, fonts).
+
+## Notes
+
+*   This summary is based on analysis of the file structure and key configuration files.
+*   Functionality details are inferred and may require deeper code review for confirmation.
