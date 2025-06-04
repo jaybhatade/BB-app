@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, Dimensions } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -6,6 +6,7 @@ import fontStyles from '../../utils/fontStyles';
 import { useAuth } from '../../contexts/AuthContext';
 import * as transactionManagement from '../../../db/transaction-management';
 import * as categoryManagement from '../../../db/category-management';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface ChartData {
   value: number;
@@ -19,59 +20,70 @@ const DemoSpendingChart = () => {
   const screenWidth = Dimensions.get('window').width;
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
+
+  const fetchSpendingData = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+      // Get current month's start and end dates
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+
+      // Get category totals for the current month
+      const categoryTotals = await transactionManagement.getCategoryTotals(
+        startDate,
+        endDate,
+        user.uid
+      );
+
+      // Get all categories to map IDs to names and colors
+      const categories = await categoryManagement.getCategories(user.uid);
+      const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
+
+      // Transform data for the chart
+      const transformedData = categoryTotals
+        .filter(total => {
+          const category = categoryMap.get(total.categoryId);
+          return total.total > 0 && category?.type === 'expense'; // Only show expense categories with transactions
+        })
+        .map(total => {
+          const category = categoryMap.get(total.categoryId);
+          return {
+            value: Math.abs(total.total), // Use absolute value for display
+            label: category?.name || 'Unknown',
+            frontColor: category?.color || '#F7B0B7',
+          };
+        })
+        .sort((a, b) => b.value - a.value) // Sort by value descending
+        .slice(0, 3); // Show top 3 categories
+
+      setChartData(transformedData);
+    } catch (error) {
+      console.error('Error fetching spending data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
-    const fetchSpendingData = async () => {
-      if (!user) return;
-
-      try {
-        setIsLoading(true);
-        // Get current month's start and end dates
-        const now = new Date();
-        const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
-
-        // Get category totals for the current month
-        const categoryTotals = await transactionManagement.getCategoryTotals(
-          startDate,
-          endDate,
-          user.uid
-        );
-
-        // Get all categories to map IDs to names and colors
-        const categories = await categoryManagement.getCategories(user.uid);
-        const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
-
-        // Transform data for the chart
-        const transformedData = categoryTotals
-          .filter(total => total.total > 0) // Only show categories with transactions
-          .map(total => {
-            const category = categoryMap.get(total.categoryId);
-            return {
-              value: Math.abs(total.total), // Use absolute value for display
-              label: category?.name || 'Unknown',
-              frontColor: category?.color || '#F7B0B7',
-            };
-          })
-          .sort((a, b) => b.value - a.value) // Sort by value descending
-          .slice(0, 5); // Show top 5 categories
-
-        setChartData(transformedData);
-      } catch (error) {
-        console.error('Error fetching spending data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchSpendingData();
-  }, [user]);
+  }, [fetchSpendingData, lastUpdate]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchSpendingData();
+      return () => {};
+    }, [fetchSpendingData])
+  );
 
   if (isLoading) {
     return (
       <View className={`mx-4 mb-4 mt-2 items-center`}>
         <Text style={fontStyles('extrabold')} className={`text-2xl mb-2 self-start ${isDarkMode ? 'text-white' : 'text-black'}`}>
-          Spending Breakdown
+          Expense Breakdown
         </Text>
         <Text style={fontStyles('medium')} className={`text-base mb-4 self-start ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           Loading...
@@ -84,10 +96,10 @@ const DemoSpendingChart = () => {
     return (
       <View className={`mx-4 mb-4 mt-2 items-center`}>
         <Text style={fontStyles('extrabold')} className={`text-2xl mb-2 self-start ${isDarkMode ? 'text-white' : 'text-black'}`}>
-          Spending Breakdown
+          Expense Breakdown
         </Text>
         <Text style={fontStyles('medium')} className={`text-base mb-4 self-start ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          No spending data available for this month
+          No expense data available for this month
         </Text>
       </View>
     );
@@ -96,10 +108,10 @@ const DemoSpendingChart = () => {
   return (
     <View className={`mx-4 mb-4 mt-2 items-center`}>
       <Text style={fontStyles('extrabold')} className={`text-2xl mb-2 self-start ${isDarkMode ? 'text-white' : 'text-black'}`}>
-        Spending Breakdown
+        Expense Breakdown
       </Text>
       <Text style={fontStyles('medium')} className={`text-base mb-4 self-start ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-        Spending by Category
+        Top 3 Expense Categories
       </Text>
       <BarChart
         data={chartData}

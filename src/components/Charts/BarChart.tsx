@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Dimensions } from 'react-native';
 import { BarChart as GiftedBarChart } from 'react-native-gifted-charts';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ChartDataItem } from '../../services/StatisticsService';
+import fontStyles from '../../utils/fontStyles';
 
 interface BarChartProps {
   incomeData: ChartDataItem[];
@@ -12,7 +13,6 @@ interface BarChartProps {
   formatAmount?: (amount: number) => string;
 }
 
-// Define the bar data item type
 interface BarDataItem {
   value: number;
   frontColor: string;
@@ -40,16 +40,12 @@ const BarChart = ({
   const { isDarkMode } = useTheme();
   const screenWidth = Dimensions.get('window').width;
 
-  // Create data structure for grouped bars
   const barData: BarDataItem[] = [];
   
-  // Process each time period's data
   incomeData.forEach((incomeItem, index) => {
     const expenseItem = expenseData[index];
     
-    // First bar (income) in group
     barData.push({
-      // Income data
       value: incomeItem.value,
       frontColor: incomeItem.frontColor || '#21965B',
       sideColor: incomeItem.sideColor || '#178F50',
@@ -57,32 +53,19 @@ const BarChart = ({
       showGradient: true,
       gradientColor: 'rgba(33, 150, 91, 0.4)',
       onPress: () => {},
-      // Mark this as the start of a group
-      innerBarComponent: (_props: any) => null, // No inner text on bar
+      innerBarComponent: (_props: any) => null,
       isGroupStart: true,
       spacing: 4,
-      // This is for tooltips, not displayed on bars
       label: incomeItem.label,
       dataPointText: 'Income',
-      // Only add label component to the first bar of each group
       labelComponent: () => (
-        <Text
-          style={{
-            color: isDarkMode ? '#B0B0B0' : '#666666',
-            fontSize: 10,
-            marginTop: 6,
-            width: 50,
-            textAlign: 'center',
-          }}
-        >
+        <Text className={`text-[10px] mt-1.5 w-[50px] text-center ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
           {incomeItem.label}
         </Text>
       ),
     });
     
-    // Second bar (expense) in group
     barData.push({
-      // Expense data
       value: expenseItem.value,
       frontColor: expenseItem.frontColor || '#FF3B30',
       sideColor: expenseItem.sideColor || '#E42F24',
@@ -90,106 +73,80 @@ const BarChart = ({
       showGradient: true,
       gradientColor: 'rgba(255, 59, 48, 0.4)',
       onPress: () => {},
-      // Mark this as the end of a group
-      innerBarComponent: (_props: any) => null, // No inner text on bar
+      innerBarComponent: (_props: any) => null,
       isGroupEnd: true,
-      spacing: 26, // Increased spacing after each group
-      // This is for tooltips, not displayed on bars
-      label: expenseItem.label, 
+      spacing: 26,
+      label: expenseItem.label,
       dataPointText: 'Expense',
-      // Don't add label component to the second bar
       labelComponent: () => null,
     });
   });
 
-  // Calculate max value for Y-axis scale
   const maxValue = Math.max(
     ...incomeData.map(item => item.value),
     ...expenseData.map(item => item.value),
-    1000 // Minimum scale for better visualization
-  ) * 1.2; // Adding 20% for better visualization
+    1000
+  ) * 1.2;
 
   return (
-    <View style={[
-      styles.container, 
-      { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF' }
-    ]}>
+    <View className={`rounded-xl p-4 mb-4 ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-sm`}>
       {title && (
-        <Text style={[
-          styles.title,
-          { color: isDarkMode ? '#FFFFFF' : '#000000' }
-        ]}>
+        <Text className={`text-lg mb-3 ${isDarkMode ? 'text-white' : 'text-black'} ${fontStyles('semibold')}`}>
           {title}
         </Text>
       )}
       
-      <View style={styles.legendContainer}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: '#21965B' }]} />
-          <Text style={[
-            styles.legendText,
-            { color: isDarkMode ? '#B0B0B0' : '#666666' }
-          ]}>
+      <View className="flex-row justify-center mb-4">
+        <View className="flex-row items-center mx-2.5">
+          <View className="w-3 h-3 rounded-full mr-1 bg-[#21965B]" />
+          <Text className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
             Income
           </Text>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: '#FF3B30' }]} />
-          <Text style={[
-            styles.legendText,
-            { color: isDarkMode ? '#B0B0B0' : '#666666' }
-          ]}>
+        <View className="flex-row items-center mx-2.5">
+          <View className="w-3 h-3 rounded-full mr-1 bg-[#FF3B30]" />
+          <Text className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
             Expense
           </Text>
         </View>
       </View>
 
-      <View style={styles.chartContainer}>
+      <View className="w-full items-center pb-5 relative">
         <GiftedBarChart
           data={barData}
-          barWidth={20} // Slightly smaller bars for better spacing
+          barWidth={20}
           spacing={10}
           barBorderRadius={4}
           noOfSections={4}
           height={height}
-          width={screenWidth - 40} // More space for rendering
+          width={screenWidth - 40}
           hideRules={true}
           showGradient={true}
           hideYAxisText={false}
           yAxisTextStyle={{
-            color: isDarkMode ? '#B0B0B0' : '#666666',
+            color: isDarkMode ? '#94a3b8' : '#475569',
             fontSize: 10,
           }}
           xAxisThickness={1}
           yAxisThickness={1}
-          xAxisColor={isDarkMode ? '#444444' : '#DDDDDD'}
-          yAxisColor={isDarkMode ? '#444444' : '#DDDDDD'}
+          xAxisColor={isDarkMode ? '#334155' : '#e2e8f0'}
+          yAxisColor={isDarkMode ? '#334155' : '#e2e8f0'}
           hideOrigin={false}
           maxValue={maxValue}
-          // Container styling to prevent clipping  
           xAxisLabelTextStyle={{
-            color: isDarkMode ? '#B0B0B0' : '#666666',
+            color: isDarkMode ? '#94a3b8' : '#475569',
             fontSize: 10,
             width: 50,
             textAlign: 'center',
           }}
-          renderTooltip={(item: BarDataItem) => {
-            return (
-              <View style={[
-                styles.tooltip,
-                { backgroundColor: isDarkMode ? '#2C2C2C' : '#FFFFFF' }
-              ]}>
-                <Text style={[
-                  styles.tooltipText,
-                  { color: isDarkMode ? '#FFFFFF' : '#000000' }
-                ]}>
-                  {item.label} ({item.dataPointText}): {formatAmount(item.value)}
-                </Text>
-              </View>
-            );
-          }}
+          renderTooltip={(item: BarDataItem) => (
+            <View className={`p-2 rounded shadow-sm ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
+              <Text className={`text-xs ${isDarkMode ? 'text-white' : 'text-black'} ${fontStyles('medium')}`}>
+                {item.label} ({item.dataPointText}): {formatAmount(item.value)}
+              </Text>
+            </View>
+          )}
           isAnimated={true}
-          // Adjustments to handle grouped bars
           disableScroll={true}
           animationDuration={500}
           yAxisLabelTexts={[
@@ -204,62 +161,5 @@ const BarChart = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    overflow: 'hidden',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 10,
-  },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 4,
-  },
-  legendText: {
-    fontSize: 12,
-  },
-  chartContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingBottom: 20, // Extra space for labels
-    position: 'relative',
-  },
-  tooltip: {
-    padding: 8,
-    borderRadius: 4,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-  },
-  tooltipText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-});
 
 export default BarChart;

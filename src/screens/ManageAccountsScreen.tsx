@@ -8,11 +8,13 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import db from '../../db/database-core';
+import { getAccountsByUserId, addAccount, updateAccount, deleteAccount } from '../../db/account-management';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Account {
@@ -31,6 +33,7 @@ export default function ManageAccountsScreen() {
   const userId = user?.uid || '';
   const { isDarkMode } = useTheme();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [formData, setFormData] = useState({
@@ -52,14 +55,14 @@ export default function ManageAccountsScreen() {
 
   const loadAccounts = useCallback(async () => {
     try {
-      const result = await db.getAllAsync<Account>(
-        `SELECT * FROM accounts WHERE userId = ? ORDER BY id`,
-        [userId]
-      );
+      setIsLoading(true);
+      const result = await getAccountsByUserId(userId);
       setAccounts(result);
     } catch (error) {
       console.error('Error loading accounts:', error);
-      Alert.alert('Error', 'Failed to load accounts');
+      Alert.alert('Error', 'Failed to load accounts. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   }, [userId]);
 
@@ -80,19 +83,23 @@ export default function ManageAccountsScreen() {
       }
 
       const now = new Date().toISOString();
-      const id = `acc_${Date.now()}`;
+      const newAccount: Account = {
+        id: `acc_${Date.now()}`,
+        userId,
+        name: formData.name,
+        balance: parseFloat(formData.balance),
+        icon: formData.icon,
+        createdAt: now,
+        updatedAt: now,
+        synced: 0
+      };
 
-      await db.runAsync(
-        `INSERT INTO accounts (id, userId, name, balance, icon, createdAt, updatedAt, synced)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, userId, formData.name, parseFloat(formData.balance), formData.icon, now, now, 0]
-      );
-      
+      await addAccount(newAccount);
       await loadAccounts();
       closeModal();
     } catch (error) {
       console.error('Error adding account:', error);
-      Alert.alert('Error', 'Failed to add account');
+      Alert.alert('Error', 'Failed to add account. Please try again.');
     }
   };
 
@@ -100,18 +107,20 @@ export default function ManageAccountsScreen() {
     if (!editingAccount) return;
 
     try {
-      const now = new Date().toISOString();
-      await db.runAsync(
-        `UPDATE accounts 
-         SET name = ?, balance = ?, icon = ?, updatedAt = ?
-         WHERE id = ?`,
-        [formData.name, parseFloat(formData.balance), formData.icon, now, editingAccount.id]
-      );
+      const updatedAccount: Account = {
+        ...editingAccount,
+        name: formData.name,
+        balance: parseFloat(formData.balance),
+        icon: formData.icon,
+        updatedAt: new Date().toISOString()
+      };
+
+      await updateAccount(updatedAccount);
       await loadAccounts();
       closeModal();
     } catch (error) {
       console.error('Error updating account:', error);
-      Alert.alert('Error', 'Failed to update account');
+      Alert.alert('Error', 'Failed to update account. Please try again.');
     }
   };
 
@@ -126,11 +135,11 @@ export default function ManageAccountsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await db.runAsync('DELETE FROM accounts WHERE id = ?', [id]);
+              await deleteAccount(id, userId);
               await loadAccounts();
             } catch (error) {
               console.error('Error deleting account:', error);
-              Alert.alert('Error', 'Failed to delete account');
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
             }
           },
         },
@@ -239,14 +248,27 @@ export default function ManageAccountsScreen() {
   return (
     <SafeAreaView className={`flex-1 ${isDarkMode ? 'bg-BackgroundDark' : 'bg-Background'}`} edges={['top']}>
       <View className="px-6 pb-6 flex-1">
-        <FlatList
-          data={accounts}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={EmptyListComponent}
-          contentContainerStyle={{ flexGrow: 1 }}
-        />
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color={isDarkMode ? '#FFFFFF' : '#000000'} />
+          </View>
+        ) : (
+          <FlatList
+            data={accounts}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={EmptyListComponent}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading}
+                onRefresh={loadAccounts}
+                tintColor={isDarkMode ? '#FFFFFF' : '#000000'}
+              />
+            }
+          />
+        )}
       </View>
 
       <TouchableOpacity
@@ -280,6 +302,7 @@ export default function ManageAccountsScreen() {
             <ScrollView 
               showsVerticalScrollIndicator={false}
               className="p-6"
+              keyboardShouldPersistTaps="handled"
             >
               <Text className={`text-xl font-montserrat-bold mb-6 ${
                 isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'

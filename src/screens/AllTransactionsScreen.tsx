@@ -3,6 +3,8 @@ import { View, Text, FlatList, TouchableOpacity, TextInput, Modal, Alert, Refres
 import { useTheme } from '../contexts/ThemeContext';
 import { getAllTransactions, getAllAccounts, getAllCategories, deleteTransaction, updateAccount } from '../../db/dbUtils';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import fontStyles from '../utils/fontStyles';
 
 interface Transaction {
   id: string;
@@ -47,6 +49,7 @@ export default function AllTransactionsScreen() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation();
 
   useEffect(() => {
     loadData();
@@ -435,12 +438,6 @@ export default function AllTransactionsScreen() {
     const isTransfer = item.type === 'debit' || item.type === 'credit';
     const transferAccount = linkedTransaction ? accounts[linkedTransaction.accountId] : null;
 
-    const getAmountColor = () => {
-      if (item.type === 'debit') return '#FF3B30';
-      if (item.type === 'credit') return '#21965B';
-      return item.type === 'expense' ? '#FF3B30' : '#21965B';
-    };
-
     const getTransactionTitle = () => {
       if (item.type === 'debit') return `Transfer to ${transferAccount?.name || 'Unknown Account'}`;
       if (item.type === 'credit') return `Transfer from ${transferAccount?.name || 'Unknown Account'}`;
@@ -449,39 +446,27 @@ export default function AllTransactionsScreen() {
 
     return (
       <TouchableOpacity
-        onPress={() => {
-          setSelectedTransaction(item);
-          setShowDetailsModal(true);
-        }}
-        className={`p-4 rounded-xl flex-row items-center justify-between ${
-          isDarkMode ? 'bg-SurfaceDark' : 'bg-Surface'
-        }`}
+        onPress={() => navigation.navigate('TransactionDetail', { id: item.id })}
+        className="flex-row items-center justify-between bg-slate-800 rounded-2xl px-4 py-3 mb-3"
       >
-        <View className="flex-row items-center">
-          <View 
-            className={`w-10 h-10 rounded-full items-center justify-center mr-3 border-2`}
-            style={{ borderColor: isTransfer ? '#9B59B6' : (category?.color || '#21965B') }}
-          >
-            <Text style={{ color: isTransfer ? '#9B59B6' : (category?.color || '#21965B') }}>
-              {isTransfer ? '↔️' : (category?.icon || '💰')}
-            </Text>
-          </View>
-          <View>
-            <Text className={`font-montserrat-medium ${
-              isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-            }`}>
-              {getTransactionTitle()}
-            </Text>
-            <Text className={`font-montserrat text-sm ${
-              isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
-            }`}>
-              {account?.name || 'Unknown Account'} • {formatDate(item.date)}
-            </Text>
-          </View>
+        <View>
+          <Text style={fontStyles('semibold')} className="text-white text-base" numberOfLines={1}>
+            {getTransactionTitle()}
+          </Text>
+          <Text style={fontStyles('regular')} className="text-xs text-gray-400">
+            {!isTransfer && category?.name ? `${category.name} • ` : ''}{account?.name || 'Unknown Account'}
+          </Text>
         </View>
-        <Text className={`font-montserrat-semibold`} style={{ color: getAmountColor() }}>
-          {item.type === 'debit' || item.type === 'expense' ? '-' : '+'}₹{item.amount.toLocaleString()}
-        </Text>
+        <View>
+          <Text style={fontStyles('extrabold')} className={`text-lg ${
+            item.type === 'income' || item.type === 'credit' ? 'text-green-500' : 'text-red-500'
+          }`}>
+            ₹{item.amount.toLocaleString()}
+          </Text>
+          <Text style={fontStyles('regular')} className="text-xs text-gray-400 text-right">
+            {formatDate(item.date)}
+          </Text>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -642,14 +627,6 @@ export default function AllTransactionsScreen() {
         />
       </View>
       <FilterModal />
-      <TransactionDetailsModal
-        visible={showDetailsModal}
-        onClose={() => {
-          setShowDetailsModal(false);
-          setSelectedTransaction(null);
-        }}
-        transaction={selectedTransaction}
-      />
     </View>
   );
 }

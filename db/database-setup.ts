@@ -110,6 +110,7 @@ export const setupDatabase = async (userId: string) => {
         accountId TEXT,
         includeBalance INTEGER,
         monthlyContribution REAL,
+        status TEXT DEFAULT 'active',
         createdAt TEXT,
         synced INTEGER DEFAULT 0,
         FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE,
@@ -270,6 +271,15 @@ export const migrateDatabase = async () => {
         DROP TABLE transactions;
         ALTER TABLE transactions_temp RENAME TO transactions;
       `);
+    }
+
+    // Check if goals table has the status column
+    const goalColumns = await db.getAllAsync("PRAGMA table_info(goals);");
+    const statusExists = goalColumns.some((column: any) => column.name === 'status');
+
+    if (!statusExists) {
+      console.log('Adding status column to goals table');
+      await db.execAsync("ALTER TABLE goals ADD COLUMN status TEXT DEFAULT 'active';");
     }
   } catch (error) {
     console.error('Error migrating database:', error);

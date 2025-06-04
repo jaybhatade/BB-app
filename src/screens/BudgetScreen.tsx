@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
-  ScrollView, 
+  FlatList,
   TouchableOpacity, 
   RefreshControl,
   Alert,
@@ -169,8 +169,7 @@ export default function BudgetScreen() {
   // Render the budget content
   const renderBudgetContent = () => {
     return (
-      <>
-        {/* Month Selector */}
+      <View>
         <MonthSelector
           currentDate={selectedDate}
           onPreviousMonth={handlePreviousMonth}
@@ -194,7 +193,7 @@ export default function BudgetScreen() {
             message="No budgets found for this month. Tap the + button to create a new budget."
           />
         )}
-      </>
+      </View>
     );
   };
 
@@ -236,15 +235,16 @@ export default function BudgetScreen() {
       </View>
 
       {activeTab === 'budget' ? (
-        <ScrollView
+        <FlatList
           className="flex-1"
           contentContainerClassName="p-4 pb-32"
+          data={[1]}
+          renderItem={() => renderBudgetContent()}
+          keyExtractor={() => 'budget-content'}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-        >
-          {renderBudgetContent()}
-        </ScrollView>
+        />
       ) : (
         <View className="flex-1">
           <GoalScreen selectedDate={selectedDate} />

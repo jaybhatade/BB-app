@@ -6,8 +6,8 @@ import { Goal } from './types';
 export const addGoal = async (goal: Goal) => {
   try {
     await db.runAsync(
-      `INSERT INTO goals (id, userId, title, emoji, targetAmount, targetDate, accountId, includeBalance, monthlyContribution, createdAt, synced)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO goals (id, userId, title, emoji, targetAmount, targetDate, accountId, includeBalance, monthlyContribution, status, createdAt, synced)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         goal.id,
         goal.userId,
@@ -18,6 +18,7 @@ export const addGoal = async (goal: Goal) => {
         goal.accountId,
         goal.includeBalance ? 1 : 0,
         goal.monthlyContribution,
+        goal.status || 'active',
         goal.createdAt || new Date().toISOString(),
         0
       ]
@@ -33,7 +34,7 @@ export const updateGoal = async (goal: Goal) => {
   try {
     await db.runAsync(
       `UPDATE goals 
-       SET title = ?, emoji = ?, targetAmount = ?, targetDate = ?, accountId = ?, includeBalance = ?, monthlyContribution = ?, synced = 0
+       SET title = ?, emoji = ?, targetAmount = ?, targetDate = ?, accountId = ?, includeBalance = ?, monthlyContribution = ?, status = ?, synced = 0
        WHERE id = ? AND userId = ?`,
       [
         goal.title,
@@ -43,6 +44,7 @@ export const updateGoal = async (goal: Goal) => {
         goal.accountId,
         goal.includeBalance ? 1 : 0,
         goal.monthlyContribution,
+        goal.status,
         goal.id,
         goal.userId
       ]

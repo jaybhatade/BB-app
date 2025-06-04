@@ -94,18 +94,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
           contentContainerStyle={{ paddingBottom: 120 }}
         >
           <View className="w-full">
-            {/* Title Field */}
-            <View className="mb-5">
-              <Text style={fontStyles('bold')} className={`${labelClass} mt-2`}>Title</Text>
-              <TextInput
-                className={inputClass}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Enter transaction title"
-                placeholderTextColor={isDarkMode ? '#B0B0B0' : '#707070'}
-                returnKeyType="next"
-              />
-            </View>
 
             <View className="mb-5">
               <Text style={fontStyles('bold')} className={labelClass}>Amount</Text>
@@ -115,6 +103,18 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 onChangeText={setAmount}
                 keyboardType="numeric"
                 placeholder="Enter amount"
+                placeholderTextColor={isDarkMode ? '#B0B0B0' : '#707070'}
+                returnKeyType="next"
+              />
+            </View>
+            {/* Title Field */}
+            <View className="mb-5">
+              <Text style={fontStyles('bold')} className={`${labelClass} mt-2`}>Description</Text>
+              <TextInput
+                className={inputClass}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Enter Description"
                 placeholderTextColor={isDarkMode ? '#B0B0B0' : '#707070'}
                 returnKeyType="next"
               />

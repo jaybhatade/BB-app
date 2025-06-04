@@ -1,43 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Modal, 
-  TextInput, 
-  ScrollView,
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
   Alert,
-  Switch,
-  FlatList
+  TextInput,
+  Modal,
+  ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import * as db from '../../db/dbUtils';
-import NoData from '../components/NoData';
-import { Picker } from '@react-native-picker/picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { 
+  Smile,
+  Plus, 
+  Trash, 
+  Flag,
+  Pencil
+} from 'lucide-react-native';
+import EmojiPicker from 'rn-emoji-keyboard';
+import fontStyles from '../utils/fontStyles';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Goal } from '../../db/types';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/navigation';
 
 interface GoalScreenProps {
   selectedDate: Date;
-}
-
-interface Goal {
-  id: string;
-  title: string;
-  emoji: string;
-  targetAmount: number;
-  targetDate: string;
-  accountId: string;
-  includeBalance: boolean;
-  monthlyContribution: number;
-  userId: string;
-  createdAt: string;
-  synced: number;
-  currentAmount?: number;
-  progress?: number;
 }
 
 interface Account {
@@ -50,206 +42,204 @@ export default function GoalScreen({ selectedDate }: GoalScreenProps) {
   const { isDarkMode } = useTheme();
   const { user } = useAuth();
   const userId = user?.uid || '';
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editGoal, setEditGoal] = useState<Goal | null>(null);
-  
-  // Form state
-  const [title, setTitle] = useState('');
-  const [emoji, setEmoji] = useState('🎯');
-  const [targetAmount, setTargetAmount] = useState('');
-  const [targetDate, setTargetDate] = useState(new Date());
-  const [accountId, setAccountId] = useState('');
-  const [includeBalance, setIncludeBalance] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [isEmojiPickerVisible, setIsEmojiPickerVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [monthlyContribution, setMonthlyContribution] = useState(0);
   
-  // Load data when screen is focused
-  useEffect(() => {
-    loadData();
-  }, []);
-  
-  // Load goals and accounts
-  const loadData = async () => {
+  const [formData, setFormData] = useState({
+    title: '',
+    emoji: '🎯',
+    targetAmount: '',
+    targetDate: new Date(),
+    monthlyContribution: 0,
+  });
+
+  const loadData = useCallback(async () => {
     try {
-      setLoading(true);
-      
-      // Load accounts
-      const userAccounts = await db.getAccounts(userId);
-      setAccounts(userAccounts);
-      
-      if (userAccounts.length > 0 && !accountId) {
-        setAccountId(userAccounts[0].id);
-      }
-      
       // Load goals
       const userGoals = await db.getGoalsByUserId(userId);
-      
-      // Calculate progress for each goal
-      const goalsWithProgress = userGoals.map((goal: Goal) => {
-        // Get current balance of the account
-        const account = userAccounts.find((acc: Account) => acc.id === goal.accountId);
-        const currentBalance = account ? account.balance : 0;
-        
-        // Calculate progress
-        const currentAmount = goal.includeBalance ? currentBalance : 0;
-        const progress = Math.min((currentAmount / goal.targetAmount) * 100, 100);
-        
-        return {
-          ...goal,
-          currentAmount,
-          progress
-        };
-      });
-      
-      setGoals(goalsWithProgress);
+      setGoals(userGoals);
     } catch (error) {
       console.error('Error loading goal data:', error);
       Alert.alert('Error', 'Failed to load goal data');
-    } finally {
-      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleEmojiSelect = useCallback((emoji: { emoji: string }) => {
+    setFormData(prev => ({ ...prev, emoji: emoji.emoji }));
+  }, []);
+
+  const createGoalAccount = async (goalTitle: string): Promise<string> => {
+    try {
+      const accountId = `acc_${Date.now()}`;
+      const accountName = `${goalTitle} Account`;
+      
+      await db.addAccount({
+        id: accountId,
+        userId,
+        name: accountName,
+        balance: 0,
+        icon: '💰',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        synced: 0
+      });
+
+      return accountId;
+    } catch (error) {
+      console.error('Error creating goal account:', error);
+      throw error;
     }
   };
-  
-  // Calculate monthly contribution
-  const calculateMonthlyContribution = useCallback(() => {
-    if (!targetAmount || !accountId) return;
-    
-    const amount = parseFloat(targetAmount);
-    if (isNaN(amount) || amount <= 0) return;
-    
-    // Get current date and target date
-    const now = new Date();
-    const target = new Date(targetDate);
-    
-    // Calculate months remaining
-    const monthsRemaining = Math.max(
-      (target.getFullYear() - now.getFullYear()) * 12 + 
-      (target.getMonth() - now.getMonth()),
-      1
-    );
-    
-    // Get account balance if includeBalance is true
-    const account = accounts.find(acc => acc.id === accountId);
-    const currentBalance = account ? account.balance : 0;
-    
-    // Calculate monthly contribution
-    const startingBalance = includeBalance ? currentBalance : 0;
-    const remaining = amount - startingBalance;
-    const monthly = Math.ceil(remaining / monthsRemaining);
-    
-    setMonthlyContribution(monthly);
-  }, [targetAmount, targetDate, accountId, includeBalance, accounts]);
-  
-  // Recalculate when relevant fields change
-  useEffect(() => {
-    calculateMonthlyContribution();
-  }, [calculateMonthlyContribution]);
-  
-  // Remove the uuid import and use a simple function to generate IDs
-  const generateId = () => {
-    return 'goal_' + Math.random().toString(36).substring(2, 15) + 
-           Math.random().toString(36).substring(2, 15);
-  };
-  
-  // Handle goal save
-  const handleSaveGoal = async () => {
+
+  const handleAddGoal = async () => {
+    if (!formData.title.trim()) {
+      Alert.alert('Error', 'Please enter a goal title');
+      return;
+    }
+    if (!formData.emoji.trim()) {
+      Alert.alert('Error', 'Please select an emoji');
+      return;
+    }
+    if (!formData.targetAmount.trim()) {
+      Alert.alert('Error', 'Please enter a target amount');
+      return;
+    }
+
     try {
-      if (!title || !targetAmount || !accountId) {
-        Alert.alert('Error', 'Please fill in all required fields');
-        return;
-      }
-      
-      const amount = parseFloat(targetAmount);
+      const amount = parseFloat(formData.targetAmount);
       if (isNaN(amount) || amount <= 0) {
         Alert.alert('Error', 'Please enter a valid target amount');
         return;
       }
-      
-      const now = new Date().toISOString();
-      const goalData: Goal = {
-        id: editGoal?.id || generateId(),
-        title,
-        emoji,
-        targetAmount: amount,
-        targetDate: targetDate.toISOString(),
-        accountId,
-        includeBalance,
-        monthlyContribution,
+
+      // Create a new account for the goal
+      const accountId = await createGoalAccount(formData.title);
+
+      const id = `goal_${Date.now()}`;
+      const newGoal: Goal = {
+        id,
         userId,
-        createdAt: now,
+        title: formData.title,
+        emoji: formData.emoji,
+        targetAmount: amount,
+        targetDate: formData.targetDate.toISOString(),
+        accountId,
+        includeBalance: false,
+        monthlyContribution: formData.monthlyContribution,
+        status: 'active',
+        createdAt: new Date().toISOString(),
         synced: 0
       };
       
-      if (editGoal) {
-        // Update existing goal
-        await db.updateGoal(goalData);
-      } else {
-        // Add new goal
-        await db.addGoal(goalData);
-      }
-      
-      // Reset form and reload data
-      resetForm();
-      loadData();
+      await db.addGoal(newGoal);
+      await loadData();
+      closeModal();
     } catch (error) {
-      console.error('Error saving goal:', error);
-      Alert.alert('Error', 'Failed to save goal');
+      console.error('Error adding goal:', error);
+      Alert.alert('Error', 'Failed to add goal');
     }
   };
-  
-  // Handle goal edit
-  const handleEditGoal = (goal: Goal) => {
-    setEditGoal(goal);
-    setTitle(goal.title);
-    setEmoji(goal.emoji);
-    setTargetAmount(goal.targetAmount.toString());
-    setTargetDate(new Date(goal.targetDate));
-    setAccountId(goal.accountId);
-    setIncludeBalance(goal.includeBalance);
-    setShowForm(true);
+
+  const handleEditGoal = async () => {
+    if (!editingGoal) return;
+
+    try {
+      const amount = parseFloat(formData.targetAmount);
+      if (isNaN(amount) || amount <= 0) {
+        Alert.alert('Error', 'Please enter a valid target amount');
+        return;
+      }
+
+      const updatedGoal: Goal = {
+        ...editingGoal,
+        title: formData.title,
+        emoji: formData.emoji,
+        targetAmount: amount,
+        targetDate: formData.targetDate.toISOString(),
+        monthlyContribution: formData.monthlyContribution,
+      };
+      
+      await db.updateGoal(updatedGoal);
+      await loadData();
+      closeModal();
+    } catch (error) {
+      console.error('Error updating goal:', error);
+      Alert.alert('Error', 'Failed to update goal');
+    }
   };
-  
-  // Handle goal delete
-  const handleDeleteGoal = (id: string) => {
+
+  const handleDeleteGoal = async (id: string) => {
     Alert.alert(
       'Delete Goal',
-      'Are you sure you want to delete this goal?',
+      'Are you sure you want to delete this goal? This will also delete the associated account.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
-              await db.deleteGoal(id, userId);
-              loadData();
+              const goal = goals.find(g => g.id === id);
+              if (goal) {
+                // Delete the associated account first
+                await db.deleteAccount(goal.accountId, userId);
+                // Then delete the goal
+                await db.deleteGoal(id, userId);
+                await loadData();
+              }
             } catch (error) {
               console.error('Error deleting goal:', error);
               Alert.alert('Error', 'Failed to delete goal');
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
-  
-  // Reset form
+
   const resetForm = () => {
-    setEditGoal(null);
-    setTitle('');
-    setEmoji('🎯');
-    setTargetAmount('');
-    setTargetDate(new Date());
-    setAccountId(accounts.length > 0 ? accounts[0].id : '');
-    setIncludeBalance(false);
-    setShowForm(false);
+    setFormData({
+      title: '',
+      emoji: '🎯',
+      targetAmount: '',
+      targetDate: new Date(),
+      monthlyContribution: 0,
+    });
   };
-  
-  // Format currency
+
+  const openEditModal = (goal: Goal) => {
+    setEditingGoal(goal);
+    setFormData({
+      title: goal.title,
+      emoji: goal.emoji,
+      targetAmount: goal.targetAmount.toString(),
+      targetDate: new Date(goal.targetDate),
+      monthlyContribution: goal.monthlyContribution,
+    });
+    setIsModalVisible(true);
+  };
+
+  const openAddModal = () => {
+    setEditingGoal(null);
+    resetForm();
+    setIsModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setIsModalVisible(false);
+    setEditingGoal(null);
+    resetForm();
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -257,8 +247,7 @@ export default function GoalScreen({ selectedDate }: GoalScreenProps) {
       maximumFractionDigits: 0
     }).format(amount);
   };
-  
-  // Format date
+
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-IN', {
       year: 'numeric',
@@ -266,433 +255,253 @@ export default function GoalScreen({ selectedDate }: GoalScreenProps) {
       day: 'numeric'
     });
   };
-  
-  // Render goal item
-  const renderGoalItem = ({ item }: { item: Goal }) => {
-    const account = accounts.find(acc => acc.id === item.accountId);
-    
-    return (
-      <View 
-        className={`rounded-xl p-4 mb-4 shadow-sm ${
+
+  const renderItem = ({ item }: { item: Goal }) => (
+    <View className="mb-3">
+      <TouchableOpacity
+        className={`p-4 rounded-[20px] mb-0 flex-row items-center justify-between ${
           isDarkMode ? 'bg-SurfaceDark' : 'bg-Surface'
         }`}
+        onPress={() => navigation.navigate('GoalDetails', { goalId: item.id })}
       >
-        <View className="flex-row justify-between items-center mb-3">
-          <View className="flex-row items-center">
-            <Text className="text-2xl mr-2">{item.emoji}</Text>
-            <Text 
-              className={`text-lg font-bold ${
-                isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-              }`}
-            >
+        <View className="flex-row items-center flex-1">
+          <View 
+            className="w-12 h-12 rounded-2xl items-center justify-center mr-4"
+            style={{ borderColor: '#0ea5e9', borderWidth: 2 }}
+          >
+            <Text style={fontStyles('extrabold')} className="text-2xl">{item.emoji}</Text>
+          </View>
+          <View className="flex-1">
+            <Text style={fontStyles('extrabold')} className={`font-montserrat-medium text-lg ${
+              isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
+            }`}>
               {item.title}
             </Text>
-          </View>
-          <View className="flex-row">
-            <TouchableOpacity 
-              className="p-2 ml-2"
-              onPress={() => handleEditGoal(item)}
-            >
-              <Ionicons 
-                name="pencil" 
-                size={20} 
-                color={isDarkMode ? '#FFFFFF' : '#000000'} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              className="p-2 ml-2"
-              onPress={() => handleDeleteGoal(item.id)}
-            >
-              <Ionicons 
-                name="trash" 
-                size={20} 
-                color="#FF3B30" 
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        <View className="mb-4">
-          <View className="flex-row justify-between mb-2">
-            <Text 
-              className={`text-sm ${
-                isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
-              }`}
-            >
-              Target:
-            </Text>
-            <Text 
-              className={`text-sm font-medium ${
-                isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-              }`}
-            >
+            <Text style={fontStyles('extrabold')} className={`font-montserrat text-sm ${
+              isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+            }`}>
               {formatCurrency(item.targetAmount)}
             </Text>
-          </View>
-          
-          <View className="flex-row justify-between mb-2">
-            <Text 
-              className={`text-sm ${
-                isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
-              }`}
-            >
-              Current:
-            </Text>
-            <Text 
-              className={`text-sm font-medium ${
-                isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-              }`}
-            >
-              {formatCurrency(item.currentAmount || 0)}
-            </Text>
-          </View>
-          
-          <View className="flex-row justify-between mb-2">
-            <Text 
-              className={`text-sm ${
-                isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
-              }`}
-            >
-              Monthly:
-            </Text>
-            <Text 
-              className={`text-sm font-medium ${
-                isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-              }`}
-            >
-              {formatCurrency(item.monthlyContribution)}
-            </Text>
-          </View>
-          
-          <View className="flex-row justify-between mb-2">
-            <Text 
-              className={`text-sm ${
-                isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
-              }`}
-            >
-              Account:
-            </Text>
-            <Text 
-              className={`text-sm font-medium ${
-                isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-              }`}
-            >
-              {account?.name || 'Unknown'}
-            </Text>
-          </View>
-          
-          <View className="flex-row justify-between mb-2">
-            <Text 
-              className={`text-sm ${
-                isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
-              }`}
-            >
-              Target Date:
-            </Text>
-            <Text 
-              className={`text-sm font-medium ${
-                isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-              }`}
-            >
-              {formatDate(new Date(item.targetDate))}
+            <Text style={fontStyles('extrabold')} className={`font-montserrat text-sm mt-1 ${
+              isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+            }`}>
+              Target: {formatDate(new Date(item.targetDate))}
             </Text>
           </View>
         </View>
-        
-        <View className="flex-row items-center">
-          <View 
-            className={`flex-1 h-2 rounded-full overflow-hidden ${
-              isDarkMode ? 'bg-slate-700' : 'bg-slate-200'
-            }`}
-          >
-            <View 
-              className="h-full bg-Primary"
-              style={{ width: `${item.progress || 0}%` }}
-            />
-          </View>
-          <Text 
-            className={`ml-2 text-xs font-medium ${
-              isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-            }`}
-          >
-            {Math.round(item.progress || 0)}%
-          </Text>
-        </View>
-      </View>
-    );
-  };
-  
+      </TouchableOpacity>
+    </View>
+  );
+
+  const EmptyListComponent = () => (
+    <View className="flex-1 items-center justify-center">
+      <Flag
+        size={80}
+        color={isDarkMode ? '#666666' : '#999999'}
+      />
+      <Text style={fontStyles('extrabold')} className={`mt-4 text-lg font-montserrat-medium text-center ${
+        isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+      }`}>
+        No goals yet
+      </Text>
+      <Text style={fontStyles('extrabold')} className={`mt-2 text-sm font-montserrat text-center ${
+        isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+      }`}>
+        Add a goal to get started
+      </Text>
+    </View>
+  );
+
   return (
-    <SafeAreaView className="flex-1" edges={['top']}>
-      {goals.length > 0 ? (
+    <SafeAreaView className={`flex-1 ${isDarkMode ? 'bg-BackgroundDark' : 'bg-Background'}`} edges={['top']}>
+      <View className="px-6 pb-6 flex-1">
         <FlatList
           data={goals}
-          renderItem={renderGoalItem}
+          renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="p-5 pb-32"
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={EmptyListComponent}
+          contentContainerStyle={{ flexGrow: 1 }}
         />
-      ) : (
-        <NoData 
-          icon="flag-outline"
-          message="No goals found. Tap the + button to create a new goal."
-        />
-      )}
-      
-      {/* Floating Action Button */}
+      </View>
+
       <TouchableOpacity
-        style={styles.fab}
-        onPress={() => {
-          resetForm();
-          setShowForm(true);
+        onPress={openAddModal}
+        className={`rounded-full items-center justify-center ${
+          isDarkMode ? 'bg-PrimaryDark' : 'bg-Primary'
+        }`}
+        style={{ 
+          position: 'absolute',
+          bottom: 110,
+          right: 30,
+          width: 56,
+          height: 56,
+          elevation: 5,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 4
         }}
       >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
+        <Plus size={30} color="#FFFFFF" />
       </TouchableOpacity>
-      
-      {/* Goal Form Modal */}
+
+      {/* Goal Modal */}
       <Modal
-        visible={showForm}
+        visible={isModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowForm(false)}
+        onRequestClose={closeModal}
       >
-        <View className="flex-1 justify-end bg-black/50">
-          <View 
-            className={`rounded-t-2xl p-5 max-h-[80%] ${
+        <TouchableOpacity 
+          activeOpacity={1} 
+          onPress={closeModal}
+          className="flex-1 justify-end bg-black/50"
+        >
+          <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={e => e.stopPropagation()}
+            className={`rounded-t-3xl ${
               isDarkMode ? 'bg-SurfaceDark' : 'bg-Surface'
             }`}
+            style={{ maxHeight: '90%' }}
           >
-            <View className="flex-row justify-between items-center mb-5">
-              <Text 
-                className={`text-xl font-bold ${
-                  isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-                }`}
-              >
-                {editGoal ? 'Edit Goal' : 'New Goal'}
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              className="px-8 py-8"
+            >
+              <Text style={fontStyles('extrabold')} className={`text-2xl font-montserrat-bold mb-8 ${
+                isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
+              }`}>
+                {editingGoal ? 'Edit Goal' : 'Add New Goal'}
               </Text>
-              <TouchableOpacity onPress={() => setShowForm(false)}>
-                <Ionicons 
-                  name="close" 
-                  size={24} 
-                  color={isDarkMode ? '#FFFFFF' : '#000000'} 
-                />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView className="mb-5">
-              <View className="mb-4">
-                <Text 
-                  className={`text-base mb-2 ${
-                    isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-                  }`}
+
+              <View className="flex-row items-center mb-8">
+                <View 
+                  className="w-20 h-20 rounded-[24px] items-center justify-center mr-6"
+                  style={{ borderColor: '#0ea5e9', borderWidth: 2 }}
                 >
-                  Title
-                </Text>
-                <TextInput
-                  className={`h-[50px] rounded-lg px-4 text-base ${
-                    isDarkMode 
-                      ? 'bg-slate-700 text-TextPrimaryDark' 
-                      : 'bg-slate-100 text-TextPrimary'
-                  }`}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Enter goal title"
-                  placeholderTextColor={isDarkMode ? '#AAAAAA' : '#999999'}
-                />
+                  <TextInput
+                    className="text-4xl text-center p-0 m-0"
+                    value={formData.emoji}
+                    placeholder="🎯"
+                    placeholderTextColor={isDarkMode ? '#B0B0B0' : '#707070'}
+                    editable={false}
+                  />
+                  <TouchableOpacity 
+                    className="absolute bottom-2 right-2 bg-transparent p-4"
+                    onPress={() => setIsEmojiPickerVisible(true)}
+                  >
+                  </TouchableOpacity>
+                </View>
+                <View className="flex-1">
+                  <TextInput
+                    className={`p-5 rounded-[24px] text-lg ${
+                      isDarkMode ? 'bg-BackgroundDark text-TextPrimaryDark' : 'bg-white text-TextPrimary'
+                    }`}
+                    placeholder="Goal Title"
+                    placeholderTextColor={isDarkMode ? '#B0B0B0' : '#707070'}
+                    value={formData.title}
+                    onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
+                  />
+                </View>
               </View>
-              
-              <View className="mb-4">
-                <Text 
-                  className={`text-base mb-2 ${
-                    isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-                  }`}
-                >
-                  Emoji
-                </Text>
+
+              <View className="mb-8">
                 <TextInput
-                  className={`h-[50px] rounded-lg px-4 text-base ${
-                    isDarkMode 
-                      ? 'bg-slate-700 text-TextPrimaryDark' 
-                      : 'bg-slate-100 text-TextPrimary'
+                  className={`p-5 rounded-[24px] text-base ${
+                    isDarkMode ? 'bg-BackgroundDark text-TextPrimaryDark' : 'bg-white text-TextPrimary'
                   }`}
-                  value={emoji}
-                  onChangeText={setEmoji}
-                  placeholder="Enter emoji"
-                  placeholderTextColor={isDarkMode ? '#AAAAAA' : '#999999'}
-                />
-              </View>
-              
-              <View className="mb-4">
-                <Text 
-                  className={`text-base mb-2 ${
-                    isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-                  }`}
-                >
-                  Target Amount (₹)
-                </Text>
-                <TextInput
-                  className={`h-[50px] rounded-lg px-4 text-base ${
-                    isDarkMode 
-                      ? 'bg-slate-700 text-TextPrimaryDark' 
-                      : 'bg-slate-100 text-TextPrimary'
-                  }`}
-                  value={targetAmount}
-                  onChangeText={setTargetAmount}
-                  placeholder="Enter target amount"
-                  placeholderTextColor={isDarkMode ? '#AAAAAA' : '#999999'}
+                  placeholder="Target Amount"
+                  placeholderTextColor={isDarkMode ? '#B0B0B0' : '#707070'}
+                  value={formData.targetAmount}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, targetAmount: text }))}
                   keyboardType="numeric"
                 />
               </View>
-              
-              <View className="mb-4">
-                <Text 
-                  className={`text-base mb-2 ${
-                    isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-                  }`}
-                >
-                  Target Date
-                </Text>
+
+              <View className="mb-8">
                 <TouchableOpacity
-                  className={`h-[50px] rounded-lg px-4 justify-center ${
-                    isDarkMode ? 'bg-slate-700' : 'bg-slate-100'
+                  className={`p-5 rounded-[24px] ${
+                    isDarkMode ? 'bg-BackgroundDark' : 'bg-white'
                   }`}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <Text 
-                    className={`text-base ${
-                      isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-                    }`}
-                  >
-                    {formatDate(targetDate)}
+                  <Text className={`text-base ${
+                    isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
+                  }`}>
+                    Target Date: {formatDate(formData.targetDate)}
                   </Text>
                 </TouchableOpacity>
-                
                 {showDatePicker && (
                   <DateTimePicker
-                    value={targetDate}
+                    value={formData.targetDate}
                     mode="date"
                     display="default"
                     onChange={(event, selectedDate) => {
                       setShowDatePicker(false);
                       if (selectedDate) {
-                        setTargetDate(selectedDate);
+                        setFormData(prev => ({ ...prev, targetDate: selectedDate }));
                       }
                     }}
                     minimumDate={new Date()}
                   />
                 )}
               </View>
-              
-              <View className="mb-4">
-                <Text 
-                  className={`text-base mb-2 ${
+
+              <Text style={fontStyles('extrabold')} className={`font-montserrat-medium mb-4 text-sm ${
+                isDarkMode ? 'text-gray-400/50' : 'text-gray-500/50'
+              }`}>
+                * Add custom emoji for the icon
+              </Text>
+
+              <View className="flex-row justify-between mb-6">
+                <TouchableOpacity
+                  onPress={closeModal}
+                  className={`p-5 rounded-[24px] flex-1 mr-3 ${
+                    isDarkMode ? 'bg-BackgroundDark' : 'bg-white'
+                  }`}
+                >
+                  <Text style={fontStyles('extrabold')} className={`text-center font-montserrat-semibold text-base ${
                     isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
+                  }`}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={editingGoal ? handleEditGoal : handleAddGoal}
+                  className={`p-5 rounded-[24px] flex-1 ml-3 ${
+                    isDarkMode ? 'bg-PrimaryDark' : 'bg-Primary'
                   }`}
                 >
-                  Account
-                </Text>
-                <View 
-                  className={`rounded-lg overflow-hidden ${
-                    isDarkMode ? 'bg-slate-700' : 'bg-slate-100'
-                  }`}
-                >
-                  <Picker
-                    selectedValue={accountId}
-                    onValueChange={(itemValue) => setAccountId(itemValue)}
-                    style={{ color: isDarkMode ? '#FFFFFF' : '#000000' }}
-                  >
-                    {accounts.map((account) => (
-                      <Picker.Item 
-                        key={account.id} 
-                        label={`${account.name} (${formatCurrency(account.balance)})`} 
-                        value={account.id} 
-                      />
-                    ))}
-                  </Picker>
-                </View>
+                  <Text style={fontStyles('extrabold')} className="text-white text-center font-montserrat-semibold text-base">
+                    {editingGoal ? 'Update' : 'Add'}
+                  </Text>
+                </TouchableOpacity>
               </View>
               
-              <View className="mb-4">
-                <View className="flex-row justify-between items-center mb-2">
-                  <Text 
-                    className={`text-base ${
-                      isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-                    }`}
-                  >
-                    Include Current Balance
-                  </Text>
-                  <Switch
-                    value={includeBalance}
-                    onValueChange={setIncludeBalance}
-                    trackColor={{ false: '#767577', true: '#81b0ff' }}
-                    thumbColor={includeBalance ? '#21965B' : '#f4f3f4'}
-                  />
-                </View>
-                <Text 
-                  className={`text-xs ${
-                    isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+              {/* Delete Goal Button */}
+              {editingGoal && (
+                <TouchableOpacity
+                  onPress={() => handleDeleteGoal(editingGoal.id)}
+                  className={`p-5 rounded-[24px] mt-6 ${
+                    isDarkMode ? 'bg-red-700' : 'bg-red-500'
                   }`}
                 >
-                  If enabled, your current account balance will be counted towards your goal
-                </Text>
-              </View>
-              
-              {monthlyContribution > 0 && (
-                <View className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg mt-4">
-                  <Text 
-                    className={`text-base font-medium mb-1 ${
-                      isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-                    }`}
-                  >
-                    Monthly Contribution Needed:
+                  <Text style={fontStyles('extrabold')} className="text-white text-center font-montserrat-semibold text-base">
+                    Delete Goal
                   </Text>
-                  <Text className="text-xl font-bold text-Primary">
-                    {formatCurrency(monthlyContribution)}
-                  </Text>
-                </View>
+                </TouchableOpacity>
               )}
             </ScrollView>
-            
-            <View className="flex-row justify-between">
-              <TouchableOpacity 
-                className="flex-1 h-[50px] rounded-lg justify-center items-center mr-2 bg-slate-100 dark:bg-slate-700"
-                onPress={() => setShowForm(false)}
-              >
-                <Text className="text-base font-medium text-slate-600 dark:text-slate-300">
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                className="flex-1 h-[50px] rounded-lg justify-center items-center ml-2 bg-Primary"
-                onPress={handleSaveGoal}
-              >
-                <Text className="text-base font-medium text-white">
-                  Save
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
+      <EmojiPicker
+        onEmojiSelected={handleEmojiSelect}
+        open={isEmojiPickerVisible}
+        onClose={() => setIsEmojiPickerVisible(false)}
+      />
     </SafeAreaView>
   );
-}
-
-const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    bottom: 110,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#0ea5e9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-}); 
+} 

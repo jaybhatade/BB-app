@@ -15,6 +15,8 @@ export type RootStackParamList = {
   IncomeDetails: undefined;
   ExpenseDetails: undefined;
   BudgetCategoryDetails: { budget: any; category: any };
+  Home: undefined;
+  GoalDetails: { goalId: string };
 };
 
 export type MainTabParamList = {

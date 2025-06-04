@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, SafeAreaView } from 'react-native';
 import { Calendar, Search, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import fontStyles from '../utils/fontStyles';
@@ -27,8 +27,9 @@ const TransactionScreen = () => {
   const [categories, setCategories] = useState<{ [key: string]: any }>({});
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
   const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -38,23 +39,35 @@ const TransactionScreen = () => {
       const categoriesData = await getAllCategories();
       
       // Create lookup maps for accounts and categories
-      const accountsMap = accountsData.reduce((acc, account) => {
+      const accountsMap = accountsData.reduce((acc: { [key: string]: any }, account) => {
         acc[account.id] = account;
         return acc;
       }, {});
       
-      const categoriesMap = categoriesData.reduce((acc, category) => {
+      const categoriesMap = categoriesData.reduce((acc: { [key: string]: any }, category) => {
         acc[category.id] = category;
         return acc;
       }, {});
       
-      // Filter transactions for the selected date
-      const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-      const filteredTransactions = allTransactions.filter(t => 
-        format(new Date(t.date), 'yyyy-MM-dd') === selectedDateStr
-      );
+      let filteredTransactions;
+      if (viewMode === 'week') {
+        // Filter transactions for the selected date in week view
+        const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+        filteredTransactions = allTransactions.filter(t => 
+          format(new Date(t.date), 'yyyy-MM-dd') === selectedDateStr
+        );
+      } else {
+        // Filter transactions for the entire month in month view
+        const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+        const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+        
+        filteredTransactions = allTransactions.filter(t => {
+          const transactionDate = new Date(t.date);
+          return transactionDate >= startOfMonth && transactionDate <= endOfMonth;
+        });
+      }
       
-      // Calculate summary for the selected date
+      // Calculate summary
       const summaryData = {
         income: filteredTransactions
           .filter(t => t.type === 'income')
@@ -75,13 +88,20 @@ const TransactionScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, viewMode, user]);
 
   useEffect(() => {
     if (user) {
       loadData();
     }
-  }, [selectedDate, viewMode, user]);
+  }, [loadData, lastUpdate]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+      return () => {};
+    }, [loadData])
+  );
 
   const handlePrev = () => {
     const newDate = new Date(selectedDate);
@@ -101,6 +121,16 @@ const TransactionScreen = () => {
       newDate.setMonth(selectedDate.getMonth() + 1);
     }
     setSelectedDate(newDate);
+  };
+
+  const toggleViewMode = () => {
+    setViewMode(viewMode === 'week' ? 'month' : 'week');
+    // Reset to first day of month when switching to month view
+    if (viewMode === 'week') {
+      const newDate = new Date(selectedDate);
+      newDate.setDate(1);
+      setSelectedDate(newDate);
+    }
   };
 
   const filteredTransactions = transactions.filter(t => {
@@ -163,7 +193,7 @@ const TransactionScreen = () => {
         <View className="flex-row items-center justify-between px-6 pt-8 pb-4">
           <Text style={fontStyles('extrabold')} className="text-4xl text-white">Transactions</Text>
           <View className="flex-row items-center gap-4">
-            <TouchableOpacity onPress={() => setViewMode(viewMode === 'week' ? 'month' : 'week')}>
+            <TouchableOpacity onPress={toggleViewMode}>
               <Calendar color="#fff" size={24} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('AllTransactions')}>
@@ -240,14 +270,18 @@ const TransactionScreen = () => {
             );
           }}
         />
-        {/* Day Summary */}
+        {/* Summary */}
         <View className="flex-row justify-between items-center bg-slate-800 rounded-2xl px-6 py-6 mx-4 mt-2">
           <View className="items-center">
-            <Text style={fontStyles('semibold')} className="text-white text-base">Total Income</Text>
+            <Text style={fontStyles('semibold')} className="text-white text-base">
+              {viewMode === 'week' ? 'Day Income' : 'Month Income'}
+            </Text>
             <Text style={fontStyles('extrabold')} className="text-green-500 text-2xl">₹{summary.income}</Text>
           </View>
           <View className="items-center">
-            <Text style={fontStyles('semibold')} className="text-white text-base">Total Expense</Text>
+            <Text style={fontStyles('semibold')} className="text-white text-base">
+              {viewMode === 'week' ? 'Day Expense' : 'Month Expense'}
+            </Text>
             <Text style={fontStyles('extrabold')} className="text-red-500 text-2xl">₹{summary.expense}</Text>
           </View>
         </View>

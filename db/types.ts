@@ -92,6 +92,7 @@ export interface User {
     accountId: string;
     includeBalance: boolean;
     monthlyContribution: number;
+    status: 'active' | 'completed' | 'cancelled';
     createdAt: string;
     synced: number;
   }
