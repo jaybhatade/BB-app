@@ -36,11 +36,14 @@ export default function GoalDetailsScreen() {
     isOnTrack: false,
     projectedCompletion: ''
   });
+
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [amount, setAmount] = useState('');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferAccountId, setTransferAccountId] = useState<string>('');
 
   useEffect(() => {
     loadGoalDetails();
@@ -74,6 +77,14 @@ export default function GoalDetailsScreen() {
   };
 
   const handleDelete = () => {
+    if (progress.currentAmount > 0) {
+      setShowTransferModal(true);
+    } else {
+      confirmDelete();
+    }
+  };
+
+  const confirmDelete = () => {
     Alert.alert(
       'Delete Goal',
       'Are you sure you want to delete this goal? This will also delete the associated account and all its transactions.',
@@ -111,6 +122,51 @@ export default function GoalDetailsScreen() {
         },
       ]
     );
+  };
+
+  const handleTransferAndDelete = async () => {
+    if (!transferAccountId) {
+      Alert.alert('Error', 'Please select an account to transfer the amount');
+      return;
+    }
+
+    try {
+      const date = new Date().toISOString();
+      const transactionId = `trans_${Date.now()}`;
+
+      // Create credit transaction in selected account
+      await db.addTransaction({
+        id: transactionId,
+        userId: user?.uid || '',
+        type: 'credit',
+        title: `Transfer from ${goal?.title}`,
+        categoryId: '',
+        amount: progress.currentAmount,
+        accountId: transferAccountId,
+        date,
+        notes: `Transfer from goal: ${goal?.title}`,
+        synced: 0
+      });
+
+      // Update account balance
+      const selectedAccount = accounts.find(acc => acc.id === transferAccountId);
+      if (selectedAccount) {
+        await db.updateAccount({
+          ...selectedAccount,
+          userId: user?.uid || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          synced: 0,
+          balance: selectedAccount.balance + progress.currentAmount
+        });
+      }
+
+      setShowTransferModal(false);
+      confirmDelete();
+    } catch (error) {
+      console.error('Error transferring amount:', error);
+      Alert.alert('Error', 'Failed to transfer amount');
+    }
   };
 
   const handleAssignMoney = async () => {
@@ -296,8 +352,8 @@ export default function GoalDetailsScreen() {
         </View>
 
         {/* Progress Bar */}
-        <View className="mb-8">
-          <View className="flex-row justify-between px-5 mb-2">
+        <View className="mb-8 px-6">
+          <View className="flex-row justify-between mb-2">
             <Text 
               style={fontStyles('extrabold')} 
               className={`text-base ${
@@ -429,11 +485,19 @@ export default function GoalDetailsScreen() {
             >
               {formatCurrency(goal.monthlyContribution)}
             </Text>
+            <Text 
+              style={fontStyles('extrabold')} 
+              className={`text-sm mt-1 ${
+                isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+              }`}
+            >
+              {progress.daysRemaining <= 0 ? 'Target date has passed' : `${progress.daysRemaining} days remaining`}
+            </Text>
           </View>
 
         </View>
       </ScrollView>
-
+ 
       {/* Action Buttons */}
       {goal.status === 'active' && (
         <View className="absolute bottom-0 left-0 right-0 p-6 space-y-4">
@@ -623,7 +687,11 @@ export default function GoalDetailsScreen() {
                   <TouchableOpacity
                     key={account.id}
                     onPress={() => {
-                      setSelectedAccountId(account.id);
+                      if (showTransferModal) {
+                        setTransferAccountId(account.id);
+                      } else {
+                        setSelectedAccountId(account.id);
+                      }
                       setShowAccountModal(false);
                     }}
                     className={`p-4 rounded-[20px] mb-3 ${
@@ -646,6 +714,106 @@ export default function GoalDetailsScreen() {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Transfer Modal */}
+      <Modal
+        visible={showTransferModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowTransferModal(false)}
+      >
+        <View className="flex-1 justify-end">
+          <TouchableOpacity 
+            activeOpacity={1} 
+            onPress={() => setShowTransferModal(false)}
+            className="absolute inset-0 bg-black/50"
+          />
+          <View 
+            className={`rounded-t-3xl ${
+              isDarkMode ? 'bg-SurfaceDark' : 'bg-Surface'
+            }`}
+          >
+            <View className="w-12 h-1.5 bg-gray-300 rounded-full self-center mt-2 mb-4" />
+            <View className="p-6 pb-8">
+              <Text 
+                style={fontStyles('extrabold')} 
+                className={`text-2xl font-montserrat-bold mb-6 ${
+                  isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
+                }`}
+              >
+                Transfer Amount
+              </Text>
+
+              <Text 
+                style={fontStyles('extrabold')} 
+                className={`text-base mb-4 ${
+                  isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+                }`}
+              >
+                Transfer {formatCurrency(progress.currentAmount)} to:
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => setShowAccountModal(true)}
+                className={`p-4 rounded-[20px] mb-6 ${
+                  isDarkMode ? 'bg-BackgroundDark' : 'bg-white'
+                }`}
+              >
+                {transferAccountId ? (
+                  <View className="flex-row items-center">
+                    <Text style={{ fontSize: 24, color: '#000' }}>
+                      {accounts.find(acc => acc.id === transferAccountId)?.icon}
+                    </Text>
+                    <View>
+                      <Text className={`ml-2 text-base ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        {accounts.find(acc => acc.id === transferAccountId)?.name}
+                      </Text>
+                      <Text className="ml-2 text-sm text-slate-500">
+                        Balance: {formatCurrency(accounts.find(acc => acc.id === transferAccountId)?.balance || 0)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>
+                    Select account
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <View className="flex-row justify-between mt-4">
+                <TouchableOpacity
+                  onPress={() => setShowTransferModal(false)}
+                  className={`p-4 rounded-[20px] flex-1 mr-3 ${
+                    isDarkMode ? 'bg-BackgroundDark' : 'bg-white'
+                  }`}
+                >
+                  <Text 
+                    style={fontStyles('extrabold')} 
+                    className={`text-center font-montserrat-semibold text-base ${
+                      isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
+                    }`}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleTransferAndDelete}
+                  className={`p-4 rounded-[20px] flex-1 ml-3 ${
+                    isDarkMode ? 'bg-PrimaryDark' : 'bg-Primary'
+                  }`}
+                >
+                  <Text 
+                    style={fontStyles('extrabold')} 
+                    className="text-white text-center font-montserrat-semibold text-base"
+                  >
+                    Transfer & Delete
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>

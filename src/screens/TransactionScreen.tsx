@@ -175,10 +175,10 @@ const TransactionScreen = () => {
           className={`items-center flex-1 py-2 rounded-[20px] ${isSelected ? 'bg-sky-500' : ''}`}
           onPress={() => setSelectedDate(currentDate)}
         >
-          <Text style={fontStyles('semibold')} className={`text-xs ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+          <Text style={fontStyles('semibold')} className={`text-xs ${isSelected ? 'text-white' : isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             {day}
           </Text>
-          <Text style={fontStyles('extrabold')} className={`text-base ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+          <Text style={fontStyles('extrabold')} className={`text-base ${isSelected ? 'text-white' : isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             {currentDate.getDate()}
           </Text>
         </TouchableOpacity>
@@ -187,30 +187,30 @@ const TransactionScreen = () => {
   };
 
   return (
-    <SafeAreaView className={`flex-1 pb-20 ${isDarkMode ? 'bg-BackgroundDark' : 'bg-Background'}`}>
+    <SafeAreaView className={`flex-1 pb-20 ${isDarkMode ? 'bg-BackgroundDark' : 'bg-white'}`}>
       <View className="flex-1 pb-10">
         {/* Header */}
         <View className="flex-row items-center justify-between px-6 pt-8 pb-4">
-          <Text style={fontStyles('extrabold')} className="text-4xl text-white">Transactions</Text>
+          <Text style={fontStyles('extrabold')} className={`text-4xl ${isDarkMode ? 'text-white' : 'text-black'}`}>Transactions</Text>
           <View className="flex-row items-center gap-4">
             <TouchableOpacity onPress={toggleViewMode}>
-              <Calendar color="#fff" size={24} />
+              <Calendar color={isDarkMode ? "#fff" : "#000"} size={24} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('AllTransactions')}>
-              <Search color="#fff" size={24} />
+              <Search color={isDarkMode ? "#fff" : "#000"} size={24} />
             </TouchableOpacity>
           </View>
         </View>
         {/* Date Selector */}
         <View className="flex-row items-center justify-between mt-4 px-6 pb-4">
           <TouchableOpacity onPress={handlePrev}>
-            <ChevronLeft color="#fff" size={24} />
+            <ChevronLeft color={isDarkMode ? "#fff" : "#000"} size={24} />
           </TouchableOpacity>
-          <Text style={fontStyles('extrabold')} className="text-lg text-white">
+          <Text style={fontStyles('extrabold')} className={`text-lg ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {format(selectedDate, viewMode === 'week' ? 'MMM d, yyyy' : 'MMMM yyyy')}
           </Text>
           <TouchableOpacity onPress={handleNext}>
-            <ChevronRight color="#fff" size={24} />
+            <ChevronRight color={isDarkMode ? "#fff" : "#000"} size={24} />
           </TouchableOpacity>
         </View>
         {/* Week View */}
@@ -224,10 +224,10 @@ const TransactionScreen = () => {
           {['all', 'income', 'expense', 'transfer'].map(type => (
             <TouchableOpacity
               key={type}
-              className={`flex-1 py-2 rounded-[20px] items-center ${filter === type ? 'bg-sky-500' : 'bg-slate-800'}`}
+              className={`flex-1 py-2 rounded-[20px] items-center ${filter === type ? 'bg-sky-500' : isDarkMode ? 'bg-slate-800' : 'bg-gray-200'}`}
               onPress={() => setFilter(type as any)}
             >
-              <Text style={fontStyles('semibold')} className={`${filter === type ? 'text-white' : 'text-gray-300'}`}>
+              <Text style={fontStyles('semibold')} className={`${filter === type ? 'text-white' : isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                 {type.charAt(0).toUpperCase() + type.slice(1)}
               </Text>
             </TouchableOpacity>
@@ -245,14 +245,14 @@ const TransactionScreen = () => {
             
             return (
             <TouchableOpacity
-              className="flex-row items-center justify-between bg-slate-800 rounded-2xl px-4 py-3 mb-3"
+              className={`flex-row items-center justify-between ${isDarkMode ? 'bg-slate-800' : 'bg-gray-100'} rounded-2xl px-4 py-3 mb-3`}
               onPress={() => navigation.navigate('TransactionDetail', { id: item.id })}
             >
               <View>
-                <Text style={fontStyles('semibold')} className="text-white text-base" numberOfLines={1}>
+                <Text style={fontStyles('semibold')} className={`text-base ${isDarkMode ? 'text-white' : 'text-black'}`} numberOfLines={1}>
                     {getTransactionTitle(item)}
                 </Text>
-                <Text style={fontStyles('regular')} className="text-xs text-gray-400">
+                <Text style={fontStyles('regular')} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     {!isTransfer && category?.name ? `${category.name} • ` : ''}{account?.name || 'Unknown Account'}
                 </Text>
               </View>
@@ -262,7 +262,7 @@ const TransactionScreen = () => {
                   }`}>
                     ₹{item.amount.toLocaleString()}
                 </Text>
-                <Text style={fontStyles('regular')} className="text-xs text-gray-400 text-right">
+                <Text style={fontStyles('regular')} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-right`}>
                   {format(new Date(item.date), 'd MMM')}
                 </Text>
               </View>
@@ -271,15 +271,15 @@ const TransactionScreen = () => {
           }}
         />
         {/* Summary */}
-        <View className="flex-row justify-between items-center bg-slate-800 rounded-2xl px-6 py-6 mx-4 mt-2">
+        <View className={`flex-row justify-between items-center ${isDarkMode ? 'bg-slate-800' : 'bg-gray-100'} rounded-2xl px-6 py-6 mx-4 mt-2`}>
           <View className="items-center">
-            <Text style={fontStyles('semibold')} className="text-white text-base">
+            <Text style={fontStyles('semibold')} className={`text-base ${isDarkMode ? 'text-white' : 'text-black'}`}>
               {viewMode === 'week' ? 'Day Income' : 'Month Income'}
             </Text>
             <Text style={fontStyles('extrabold')} className="text-green-500 text-2xl">₹{summary.income}</Text>
           </View>
           <View className="items-center">
-            <Text style={fontStyles('semibold')} className="text-white text-base">
+            <Text style={fontStyles('semibold')} className={`text-base ${isDarkMode ? 'text-white' : 'text-black'}`}>
               {viewMode === 'week' ? 'Day Expense' : 'Month Expense'}
             </Text>
             <Text style={fontStyles('extrabold')} className="text-red-500 text-2xl">₹{summary.expense}</Text>

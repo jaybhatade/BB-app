@@ -85,7 +85,7 @@ const TransactionDetailScreen = () => {
       {/* Header */}
       <View className="flex-row items-center justify-between px-6 pt-8 pb-4">
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <ChevronLeft color="#fff" size={24} />
+          <ChevronLeft color={isDarkMode ? "#fff" : "#000"} size={24} />
         </TouchableOpacity>
         <TouchableOpacity onPress={handleDelete}>
           <Trash2 color="#ff0000" size={24} />
@@ -95,36 +95,36 @@ const TransactionDetailScreen = () => {
       {/* Transaction Details */}
       <View className="flex-1 px-6 mt-8">
         <View className="items-center">
-          <View className="w-16 h-16 rounded-full bg-slate-700 items-center justify-center">
+          <View className={`w-16 h-16 rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'} items-center justify-center`}>
             {getTransactionIcon(transaction)}
           </View>
           <Text style={fontStyles('extrabold')} className={`${getTransactionColor(transaction)} text-4xl mt-4`}>
             {transaction.type === 'income' || transaction.type === 'credit' ? '+₹' : '-₹'}{transaction.amount.toLocaleString()}
           </Text>
-          <Text style={fontStyles('semibold')} className="text-white text-lg mt-1">{transaction.title || categoryName || 'Unknown'}</Text>
+          <Text style={fontStyles('semibold')} className={`${isDarkMode ? 'text-white' : 'text-black'} text-lg mt-1`}>{transaction.title || categoryName || 'Unknown'}</Text>
         </View>
 
         {/* Details List */}
         <View className="mt-8">
-          <View className="flex-row items-center justify-between py-3 border-b border-gray-700">
+          <View className={`flex-row items-center justify-between py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
             <View className="flex-row items-center">
-              <Calendar color="#fff" size={20} />
-              <Text style={fontStyles('semibold')} className="text-white text-base ml-3">Date</Text>
+              <Calendar color={isDarkMode ? "#fff" : "#000"} size={20} />
+              <Text style={fontStyles('semibold')} className={`${isDarkMode ? 'text-white' : 'text-black'} text-base ml-3`}>Date</Text>
             </View>
-            <Text style={fontStyles('regular')} className="text-gray-300 text-base">{format(new Date(transaction.date), 'd MMM yyyy')}</Text>
+            <Text style={fontStyles('regular')} className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} text-base`}>{format(new Date(transaction.date), 'd MMM yyyy')}</Text>
           </View>
 
-          <View className="flex-row items-center justify-between py-3 border-b border-gray-700">
+          <View className={`flex-row items-center justify-between py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
             <View className="flex-row items-center">
-              <Wallet color="#fff" size={20} />
-              <Text style={fontStyles('semibold')} className="text-white text-base ml-3">Account</Text>
+              <Wallet color={isDarkMode ? "#fff" : "#000"} size={20} />
+              <Text style={fontStyles('semibold')} className={`${isDarkMode ? 'text-white' : 'text-black'} text-base ml-3`}>Account</Text>
             </View>
-            <Text style={fontStyles('regular')} className="text-gray-300 text-base">{accountName || 'Unknown Account'}</Text>
+            <Text style={fontStyles('regular')} className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} text-base`}>{accountName || 'Unknown Account'}</Text>
           </View>
 
           <View className="py-3">
-            <Text style={fontStyles('semibold')} className="text-white text-base">Note:</Text>
-            <Text style={fontStyles('regular')} className="text-gray-300 text-base mt-1">{transaction.notes || 'No notes provided.'}</Text>
+            <Text style={fontStyles('semibold')} className={`${isDarkMode ? 'text-white' : 'text-black'} text-base`}>Note:</Text>
+            <Text style={fontStyles('regular')} className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} text-base mt-1`}>{transaction.notes || 'No notes provided.'}</Text>
           </View>
         </View>
 
@@ -155,7 +155,7 @@ const TransactionDetailScreen = () => {
 
       {/* Footer */}
       <View className="items-center mb-4">
-        <Text style={fontStyles('regular')} className="text-gray-500 text-sm">created with Bloom Budget</Text>
+        <Text style={fontStyles('regular')} className={`${isDarkMode ? 'text-gray-500' : 'text-gray-400'} text-sm`}>created with Bloom Budget</Text>
       </View>
     </SafeAreaView>
   );

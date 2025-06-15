@@ -58,6 +58,24 @@ export default function GoalScreen({ selectedDate }: GoalScreenProps) {
     monthlyContribution: 0,
   });
 
+  const calculateMonthlyContribution = (targetAmount: number, targetDate: Date): number => {
+    const today = new Date();
+    if (targetDate <= today) return targetAmount;
+
+    // Calculate difference in months and account for partial months
+    let yearDiff = targetDate.getFullYear() - today.getFullYear();
+    let monthDiff = targetDate.getMonth() - today.getMonth();
+    let dayDiff = targetDate.getDate() - today.getDate();
+
+    let totalMonths = yearDiff * 12 + monthDiff;
+    if (dayDiff > 0) totalMonths += 1;
+
+    if (totalMonths <= 0) return targetAmount;
+
+    const monthlyContribution = Math.ceil(targetAmount / totalMonths);
+    return monthlyContribution;
+  };
+
   const loadData = useCallback(async () => {
     try {
       // Load goals
@@ -121,6 +139,9 @@ export default function GoalScreen({ selectedDate }: GoalScreenProps) {
         return;
       }
 
+      // Calculate monthly contribution
+      const monthlyContribution = calculateMonthlyContribution(amount, formData.targetDate);
+
       // Create a new account for the goal
       const accountId = await createGoalAccount(formData.title);
 
@@ -134,7 +155,7 @@ export default function GoalScreen({ selectedDate }: GoalScreenProps) {
         targetDate: formData.targetDate.toISOString(),
         accountId,
         includeBalance: false,
-        monthlyContribution: formData.monthlyContribution,
+        monthlyContribution,
         status: 'active',
         createdAt: new Date().toISOString(),
         synced: 0
@@ -159,13 +180,16 @@ export default function GoalScreen({ selectedDate }: GoalScreenProps) {
         return;
       }
 
+      // Calculate monthly contribution
+      const monthlyContribution = calculateMonthlyContribution(amount, formData.targetDate);
+
       const updatedGoal: Goal = {
         ...editingGoal,
         title: formData.title,
         emoji: formData.emoji,
         targetAmount: amount,
         targetDate: formData.targetDate.toISOString(),
-        monthlyContribution: formData.monthlyContribution,
+        monthlyContribution,
       };
       
       await db.updateGoal(updatedGoal);
@@ -256,42 +280,66 @@ export default function GoalScreen({ selectedDate }: GoalScreenProps) {
     });
   };
 
-  const renderItem = ({ item }: { item: Goal }) => (
-    <View className="mb-3">
-      <TouchableOpacity
-        className={`p-4 rounded-[20px] mb-0 flex-row items-center justify-between ${
-          isDarkMode ? 'bg-SurfaceDark' : 'bg-Surface'
-        }`}
-        onPress={() => navigation.navigate('GoalDetails', { goalId: item.id })}
-      >
-        <View className="flex-row items-center flex-1">
-          <View 
-            className="w-12 h-12 rounded-2xl items-center justify-center mr-4"
-            style={{ borderColor: '#0ea5e9', borderWidth: 2 }}
-          >
-            <Text style={fontStyles('extrabold')} className="text-2xl">{item.emoji}</Text>
+  const renderItem = ({ item }: { item: Goal }) => {
+    // Calculate progress percentage
+    const progress = item.currentAmount ? (item.currentAmount / item.targetAmount) * 100 : 0;
+    
+    return (
+      <View className="mb-3">
+        <TouchableOpacity
+          className={`p-4 rounded-[20px] mb-0 flex-row items-center justify-between ${
+            isDarkMode ? 'bg-SurfaceDark' : 'bg-Surface'
+          }`}
+          onPress={() => navigation.navigate('GoalDetails', { goalId: item.id })}
+        >
+          <View className="flex-row items-center flex-1">
+            <View 
+              className="w-12 h-12 rounded-2xl items-center justify-center mr-4"
+              style={{ borderColor: '#0ea5e9', borderWidth: 2 }}
+            >
+              <Text style={fontStyles('extrabold')} className="text-2xl">{item.emoji}</Text>
+            </View>
+            <View className="flex-1">
+              <Text style={fontStyles('extrabold')} className={`font-montserrat-medium text-lg ${
+                isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
+              }`}>
+                {item.title}
+              </Text>
+              <Text style={fontStyles('extrabold')} className={`font-montserrat text-sm ${
+                isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+              }`}>
+                {formatCurrency(item.targetAmount)}
+              </Text>
+              <Text style={fontStyles('extrabold')} className={`font-montserrat text-sm mt-1 ${
+                isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+              }`}>
+                Target: {formatDate(new Date(item.targetDate))}
+              </Text>
+              
+              {/* Progress Bar */}
+              <View className="mt-2">
+                <View 
+                  className={`h-2 w-full rounded-full overflow-hidden ${
+                    isDarkMode ? 'bg-slate-700' : 'bg-slate-200'
+                  }`}
+                >
+                  <View 
+                    className="h-full bg-Primary"
+                    style={{ width: `${progress}%` }}
+                  />
+                </View>
+                <Text style={fontStyles('extrabold')} className={`font-montserrat text-xs mt-1 ${
+                  isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
+                }`}>
+                  {Math.round(progress)}% Complete
+                </Text>
+              </View>
+            </View>
           </View>
-          <View className="flex-1">
-            <Text style={fontStyles('extrabold')} className={`font-montserrat-medium text-lg ${
-              isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
-            }`}>
-              {item.title}
-            </Text>
-            <Text style={fontStyles('extrabold')} className={`font-montserrat text-sm ${
-              isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
-            }`}>
-              {formatCurrency(item.targetAmount)}
-            </Text>
-            <Text style={fontStyles('extrabold')} className={`font-montserrat text-sm mt-1 ${
-              isDarkMode ? 'text-TextSecondaryDark' : 'text-TextSecondary'
-            }`}>
-              Target: {formatDate(new Date(item.targetDate))}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </View>
-  );
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const EmptyListComponent = () => (
     <View className="flex-1 items-center justify-center">

@@ -17,6 +17,15 @@ interface Transaction {
   date: string;
   notes?: string;
   linkedTransactionId?: string;
+  title?: string;
+}
+
+interface GroupedTransactions {
+  month: string;
+  year: string;
+  totalIncome: number;
+  totalExpense: number;
+  transactions: Transaction[];
 }
 
 interface Account {
@@ -203,6 +212,8 @@ export default function AllTransactionsScreen() {
     onClose: () => void; 
     transaction: Transaction | null;
   }) => {
+    const { isDarkMode } = useTheme();
+    
     if (!transaction) return null;
 
     const account = accounts[transaction.accountId];
@@ -244,7 +255,7 @@ export default function AllTransactionsScreen() {
           <View className={`rounded-t-3xl ${
             isDarkMode ? 'bg-SurfaceDark' : 'bg-Background'
           }`}>
-            <View className="flex-row justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+            <View className={`flex-row justify-between items-center p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <Text className={`text-xl font-montserrat-bold ${
                 isDarkMode ? 'text-TextPrimaryDark' : 'text-TextPrimary'
               }`}>
@@ -439,6 +450,11 @@ export default function AllTransactionsScreen() {
     const transferAccount = linkedTransaction ? accounts[linkedTransaction.accountId] : null;
 
     const getTransactionTitle = () => {
+      // If there's a title, show it
+      if (item.title) {
+        return item.title;
+      }
+
       if (item.type === 'debit') return `Transfer to ${transferAccount?.name || 'Unknown Account'}`;
       if (item.type === 'credit') return `Transfer from ${transferAccount?.name || 'Unknown Account'}`;
       return category?.name || 'Unknown Category';
@@ -447,13 +463,13 @@ export default function AllTransactionsScreen() {
     return (
       <TouchableOpacity
         onPress={() => navigation.navigate('TransactionDetail', { id: item.id })}
-        className="flex-row items-center justify-between bg-slate-800 rounded-2xl px-4 py-3 mb-3"
+        className={`flex-row items-center justify-between ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'} rounded-2xl px-4 py-3 mb-3`}
       >
         <View>
-          <Text style={fontStyles('semibold')} className="text-white text-base" numberOfLines={1}>
+          <Text style={fontStyles('semibold')} className={`${isDarkMode ? 'text-white' : 'text-black'} text-base`} numberOfLines={1}>
             {getTransactionTitle()}
           </Text>
-          <Text style={fontStyles('regular')} className="text-xs text-gray-400">
+          <Text style={fontStyles('regular')} className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-xs`}>
             {!isTransfer && category?.name ? `${category.name} • ` : ''}{account?.name || 'Unknown Account'}
           </Text>
         </View>
@@ -463,7 +479,7 @@ export default function AllTransactionsScreen() {
           }`}>
             ₹{item.amount.toLocaleString()}
           </Text>
-          <Text style={fontStyles('regular')} className="text-xs text-gray-400 text-right">
+          <Text style={fontStyles('regular')} className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-xs text-right`}>
             {formatDate(item.date)}
           </Text>
         </View>
@@ -573,6 +589,90 @@ export default function AllTransactionsScreen() {
     </Modal>
   );
 
+  const groupTransactionsByMonth = (transactions: Transaction[]): GroupedTransactions[] => {
+    const groups: { [key: string]: GroupedTransactions } = {};
+
+    transactions.forEach(transaction => {
+      const date = new Date(transaction.date);
+      const month = date.toLocaleString('default', { month: 'long' });
+      const year = date.getFullYear().toString();
+      const key = `${month}-${year}`;
+
+      if (!groups[key]) {
+        groups[key] = {
+          month,
+          year,
+          totalIncome: 0,
+          totalExpense: 0,
+          transactions: []
+        };
+      }
+
+      groups[key].transactions.push(transaction);
+
+      if (transaction.type === 'income' || transaction.type === 'credit') {
+        groups[key].totalIncome += transaction.amount;
+      } else if (transaction.type === 'expense' || transaction.type === 'debit') {
+        groups[key].totalExpense += transaction.amount;
+      }
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const dateA = new Date(`${a.month} 1, ${a.year}`);
+      const dateB = new Date(`${b.month} 1, ${b.year}`);
+      return dateB.getTime() - dateA.getTime();
+    });
+  };
+
+  const MonthHeader = ({ month, year, totalIncome, totalExpense }: { 
+    month: string; 
+    year: string; 
+    totalIncome: number; 
+    totalExpense: number;
+  }) => {
+    const netAmount = totalIncome - totalExpense;
+    const isPositive = netAmount >= 0;
+
+    return (
+      <View className={`px-4 py-3 mb-2 ${isDarkMode ? 'bg-slate-900' : 'bg-slate-200'} rounded-xl`}>
+        <View className="flex-row justify-between items-center">
+          <Text style={fontStyles('semibold')} className={`${isDarkMode ? 'text-white' : 'text-black'} text-base`}>
+            {month} {year}
+          </Text>
+          <Text style={fontStyles('semibold')} className={`${isPositive ? 'text-green-500' : (isDarkMode ? 'text-white' : 'text-black')} text-base`}>
+            {isPositive ? '+' : ''}₹{netAmount.toLocaleString()}
+          </Text>
+        </View>
+        <View className="flex-row justify-between mt-1">
+          <Text style={fontStyles('regular')} className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-xs`}>
+            Income: ₹{totalIncome.toLocaleString()}
+          </Text>
+          <Text style={fontStyles('regular')} className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-xs`}>
+            Expense: ₹{totalExpense.toLocaleString()}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderItem = ({ item }: { item: GroupedTransactions }) => {
+    return (
+      <View>
+        <MonthHeader
+          month={item.month}
+          year={item.year}
+          totalIncome={item.totalIncome}
+          totalExpense={item.totalExpense}
+        />
+        {item.transactions.map(transaction => (
+          <View key={transaction.id}>
+            {renderTransaction({ item: transaction })}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <View className={`flex-1 ${isDarkMode ? 'bg-BackgroundDark' : 'bg-Background'}`}>
       <View className="px-6 pt-12 pb-6 flex-1">
@@ -610,9 +710,9 @@ export default function AllTransactionsScreen() {
         </View>
 
         <FlatList
-          data={filteredTransactions}
-          renderItem={renderTransaction}
-          keyExtractor={(item) => item.id}
+          data={groupTransactionsByMonth(filteredTransactions)}
+          renderItem={renderItem}
+          keyExtractor={(item) => `${item.month}-${item.year}`}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ gap: 16, paddingBottom: 20 }}
           refreshControl={

@@ -16,20 +16,18 @@ module.exports = {
       },
       colors: {
         // Light Theme Colors
-        // Primary: '#21965B',
         Primary: '#0ea5e9',
         Secondary: 'rgb(31, 134, 83)',
-        Background: '#FFFFFF',
-        Surface: '#F5F5F5',
+        Background: '#F8FAFC',        // Light slate background
+        Surface: '#E2E8F0',           // Light slate surface
         OnPrimary: '#FFFFFF',
         OnSecondary: '#FFFFFF',
-        OnBackground: '#000000',
-        OnSurface: '#000000',
-        TextPrimary: '#000000',
-        TextSecondary: '#707070',
+        OnBackground: '#0F172A',      // Dark slate text (matches dark background)
+        OnSurface: '#1E293B',         // Dark slate text (matches dark surface)
+        TextPrimary: '#0F172A',       // Dark slate primary text
+        TextSecondary: '#64748B',     // Medium slate secondary text
         
         // Dark Theme Colors
-        // PrimaryDark: '#21965B',
         PrimaryDark: '#0ea5e9',
         SecondaryDark: 'rgb(25, 110, 68)',
         BackgroundDark: '#0F172A',
@@ -41,7 +39,7 @@ module.exports = {
         TextPrimaryDark: '#FFFFFF',
         TextSecondaryDark: '#B0B0B0',
       },
-    },
+     },
   },
   plugins: [],
 };
